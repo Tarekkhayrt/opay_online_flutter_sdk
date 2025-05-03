@@ -40,10 +40,10 @@ class _MyHomePageState extends State<MyHomePage> {
   String _currentEnv = OPayTask.isSandBox() ? "sandbox" : "release";
   //create order params
   var payParams = PayParams(
-    publicKey: "OPAYPUB16439784430450.8862954414366331",
+    publicKey: "OPAYPUB16*********633361",
     merchantId: "281822020432862",
     merchantName: "Branditta",
-    reference: "1182323221",
+    reference: "11770543",
     countryCode: Country.egypt.countryCode,
     payAmount: 1000,
     currency: Country.egypt.currency,
@@ -57,7 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
   );
 
   CashierStatusParam statusParam = CashierStatusParam(
-      privateKey: "OPAYPRV16439784430450.8862954414366331",
+      privateKey: "OPAYPRV1*********474",
       merchantId: "281822020432862",
       reference: "126",
       orderNo: "",
@@ -157,7 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
               TextButton(
                 onPressed: _changeEnv,
                 child: Text(
-                  'Change Env ($_currentEnv) ',
+                  'Change Env (currentEnv: $_currentEnv) ',
                   style: const TextStyle(color: Colors.white),
                 ),
                 style: ButtonStyle(

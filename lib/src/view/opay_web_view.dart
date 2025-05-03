@@ -3,7 +3,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:opay_online_flutter_sdk/src/model/web_js_response.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -25,9 +24,64 @@ class OPayWebView extends StatefulWidget {
 
 class _OPayWebView extends State<OPayWebView> {
   int _currentProgress = 0;
-  final WebViewController _webViewController = WebViewController();
+  late final WebViewController _webViewController;
 
-  _OPayWebView();
+  @override
+  void initState() {
+    super.initState();
+    _initializeWebViewController();
+  }
+
+  void _initializeWebViewController() {
+    _webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel('clickResultOKBtn',
+          onMessageReceived: (JavaScriptMessage message) async {
+        String resultMsg = message.message;
+        Map<String, dynamic> map = json.decode(resultMsg);
+        WebJsResponse response = WebJsResponse.fromJson(map);
+        _finishPage(response);
+      })
+      ..addJavaScriptChannel('clickResultCancelBtn',
+          onMessageReceived: (JavaScriptMessage message) async {
+        String resultMsg = message.message;
+        Map<String, dynamic> map = json.decode(resultMsg);
+        WebJsResponse response = WebJsResponse.fromJson(map);
+        _finishPage(response);
+      })
+      ..addJavaScriptChannel('clickReferenceCodeReturnBtn',
+          onMessageReceived: (JavaScriptMessage message) async {
+        String resultMsg = message.message;
+        Map<String, dynamic> map = json.decode(resultMsg);
+        WebJsResponse response = WebJsResponse.fromJson(map);
+        _finishPage(response);
+      })
+      ..enableZoom(false)
+      ..setNavigationDelegate(NavigationDelegate(
+        onNavigationRequest: (NavigationRequest request) {
+          debugPrint(request.url);
+          if (!request.url.startsWith("http")) {
+            return NavigationDecision.prevent;
+          }
+          return NavigationDecision.navigate;
+        },
+        onProgress: (int progress) {
+          setState(() {
+            _currentProgress = progress;
+          });
+        },
+        onPageFinished: (String url) {
+          debugPrint('Page finished loading: $url');
+        },
+      ));
+
+    // Load the initial URL
+    _webViewController.loadRequest(Uri.parse(widget.isLocalUrl
+        ? Uri.dataFromString(widget.webUrl,
+                mimeType: 'text/html', encoding: Encoding.getByName('utf-8'))
+            .toString()
+        : widget.webUrl));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,72 +112,10 @@ class _OPayWebView extends State<OPayWebView> {
         _linearProgressIndicator(),
         Expanded(
           flex: 1,
-          child: WebViewWidget(
-            controller: WebViewController()
-              ..setJavaScriptMode(JavaScriptMode.unrestricted)
-              ..addJavaScriptChannel('clickResultOKBtn',
-                  onMessageReceived: (JavaScriptMessage message) async {
-                String resultMsg = message.message;
-                Map<String, dynamic> map = json.decode(resultMsg);
-                WebJsResponse response = WebJsResponse.fromJson(map);
-                _finishPage(response);
-              })
-              ..addJavaScriptChannel('clickResultCancelBtn',
-                  onMessageReceived: (JavaScriptMessage message) async {
-                String resultMsg = message.message;
-                Map<String, dynamic> map = json.decode(resultMsg);
-                WebJsResponse response = WebJsResponse.fromJson(map);
-                _finishPage(response);
-              })
-              ..addJavaScriptChannel('clickReferenceCodeReturnBtn',
-                  onMessageReceived: (JavaScriptMessage message) async {
-                String resultMsg = message.message;
-                Map<String, dynamic> map = json.decode(resultMsg);
-                WebJsResponse response = WebJsResponse.fromJson(map);
-                _finishPage(response);
-              })
-              ..enableZoom(false)
-              ..setNavigationDelegate(NavigationDelegate(
-                  onNavigationRequest: (NavigationRequest request) {
-                    debugPrint(request.url);
-                    if (!request.url.startsWith("http")) {
-                      return NavigationDecision.prevent;
-                    }
-                    return NavigationDecision.navigate;
-                  },
-                  onProgress: (int progress) {
-                    setState(() {
-                      _currentProgress = progress;
-                    });
-                  },
-                  onPageStarted: (String url) {
-                    if (widget.isLocalUrl) {
-                      _loadHtmlAssets();
-                    } else {
-                      _webViewController.loadRequest(Uri.parse(widget.webUrl));
-                    }
-                  },
-                  onPageFinished: (String url) {}))
-              ..canGoBack().then((value) => debugPrint(value.toString()))
-              ..canGoForward().then((value) => debugPrint(value.toString()))
-              ..currentUrl().then((value) => debugPrint(value))
-              ..loadRequest(Uri.parse(widget.isLocalUrl
-                  ? Uri.dataFromString(widget.webUrl,
-                          mimeType: 'text/html',
-                          encoding: Encoding.getByName('utf-8'))
-                      .toString()
-                  : widget.webUrl)),
-          ),
-        )
+          child: WebViewWidget(controller: _webViewController),
+        ),
       ],
     );
-  }
-
-  //加载本地文件
-  _loadHtmlAssets() async {
-    String htmlPath = await rootBundle.loadString(widget.webUrl);
-    _webViewController.loadRequest(Uri.dataFromString(htmlPath,
-        mimeType: 'text/html', encoding: Encoding.getByName('utf-8')));
   }
 
   _finishPage(WebJsResponse? webJsResponse) {
